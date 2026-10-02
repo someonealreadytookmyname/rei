@@ -1,9 +1,0 @@
-{
-  "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://rei-6eqj.onrender.com/api/:path*"
-    }
-  ]
-}

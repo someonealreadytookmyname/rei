@@ -1,14 +1,15 @@
 import hashlib
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# Storage directory for uploaded PDFs
-STORAGE_DIR = Path(os.environ.get("STORAGE_DIR", Path(__file__).parent.parent.parent / "storage"))
-STORAGE_DIR.mkdir(exist_ok=True)
+from backend.services.config_service import DATA_DIR
+
+# Storage directory for uploaded PDFs (inside app data directory)
+STORAGE_DIR = DATA_DIR / "storage"
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Metadata file tracking all PDFs
 META_FILE = STORAGE_DIR / "_metadata.json"

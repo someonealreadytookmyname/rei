@@ -1,9 +1,36 @@
 import json
 import os
 from pathlib import Path
+import sys
 
-# Config file lives at project root or overridden via env var
-CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", Path(__file__).parent.parent.parent / "config.json"))
+# ─── DATA DIRECTORY ───────────────────────────────────────────────────
+# Desktop app stores data in %APPDATA%/rei/ (Windows)
+# Fallback to project root for development
+
+def _get_data_dir() -> Path:
+    """Get the application data directory."""
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA", "")
+        if appdata:
+            data_dir = Path(appdata) / "rei"
+        else:
+            data_dir = Path(__file__).parent.parent.parent / "data"
+    else:
+        # macOS/Linux
+        home = Path.home()
+        if sys.platform == "darwin":
+            data_dir = home / "Library" / "Application Support" / "rei"
+        else:
+            data_dir = home / ".local" / "share" / "rei"
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
+
+
+DATA_DIR = _get_data_dir()
+
+# Config file lives in the data directory
+CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", DATA_DIR / "config.json"))
 
 DEFAULT_CONFIG = {
     "llm_mode": "local",         # "local" or "api"
@@ -23,7 +50,7 @@ DEFAULT_CONFIG = {
 
 
 def load_config() -> dict:
-    """Load config from disk, creating defaults if missing. Supports environment variable overrides."""
+    """Load config from disk, creating defaults if missing."""
     config = dict(DEFAULT_CONFIG)
     if CONFIG_PATH.exists():
         try:
@@ -34,17 +61,12 @@ def load_config() -> dict:
         except (json.JSONDecodeError, IOError):
             pass
 
-    # Allow environment variables to override/initialize configuration
-    for key in DEFAULT_CONFIG:
-        env_val = os.environ.get(key.upper())
-        if env_val:
-            config[key] = env_val
-
     return config
 
 
 def save_config(config: dict) -> None:
     """Persist config to disk."""
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     # Only save known keys
     to_save = {k: config.get(k, v) for k, v in DEFAULT_CONFIG.items()}
     with open(CONFIG_PATH, "w") as f:

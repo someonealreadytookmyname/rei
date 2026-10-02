@@ -9,3 +9,4 @@ openai
 google-generativeai
 anthropic
 python-multipart
+httpx

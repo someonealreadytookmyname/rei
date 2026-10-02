@@ -8,3 +8,25 @@ storage/
 # Python cache
 __pycache__/
 *.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+package-lock.json
+
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+app.log

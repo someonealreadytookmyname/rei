@@ -1,9 +1,8 @@
 import chromadb
-import os
-from pathlib import Path
+from backend.services.config_service import DATA_DIR
 
-# ChromaDB persistent directory (same location as existing)
-CHROMA_DIR = str(os.environ.get("CHROMA_DIR", Path(__file__).parent.parent.parent / "chroma_db"))
+# ChromaDB persistent directory (inside app data directory)
+CHROMA_DIR = str(DATA_DIR / "chroma_db")
 
 # Lazy singleton
 _client = None

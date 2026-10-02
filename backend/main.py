@@ -2,17 +2,20 @@ import json
 import traceback
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException, Body, Header, Depends
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, FileResponse
 from typing import Any
+import httpx
 
 from backend.models import ChatRequest, SettingsModel, PDFInfo, UploadResponse
 from backend.services import config_service, pdf_service, embedding_service, chroma_service, llm_service
+from backend.services.config_service import DATA_DIR
+
+from fastapi.middleware.cors import CORSMiddleware
 
 # ─── APP SETUP ────────────────────────────────────────────────────────
 
-app = FastAPI(title="REI", description="PDF Chat with RAG")
+app = FastAPI(title="REI", description="PDF Chat with RAG — Desktop Edition")
 
 app.add_middleware(
     CORSMiddleware,
@@ -257,21 +260,47 @@ async def update_settings(settings: dict[str, Any] = Body(...)):
     return {"success": True, "message": "Settings updated."}
 
 
-@app.get("/api/logs")
-async def get_logs(lines: int = 150):
-    """Retrieve the last N lines of the application logs."""
-    log_path = Path("/app/app.log")
-    if not log_path.exists():
-        # Fallback to checking local path
-        log_path = Path(__file__).parent.parent / "app.log"
-        if not log_path.exists():
-            return {"message": "Log file not found."}
+# ─── ROUTES: OLLAMA STATUS ───────────────────────────────────────────
+
+@app.get("/api/ollama/status")
+async def ollama_status():
+    """Check if Ollama is running and list available models."""
     try:
-        with open(log_path, "r", errors="ignore") as f:
-            all_lines = f.readlines()
-        return {"logs": "".join(all_lines[-lines:])}
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://127.0.0.1:11434/api/tags")
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m.get("name", "") for m in data.get("models", [])]
+                return {"running": True, "models": models}
+    except Exception:
+        pass
+    return {"running": False, "models": []}
+
+
+@app.get("/api/ollama/pull/{model_name:path}")
+async def ollama_pull_model(model_name: str):
+    """Trigger Ollama to pull a model."""
+    try:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            resp = await client.post(
+                "http://127.0.0.1:11434/api/pull",
+                json={"name": model_name},
+            )
+            return resp.json()
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=503, detail=f"Ollama not reachable: {str(e)}")
+
+
+# ─── ROUTES: APP INFO ────────────────────────────────────────────────
+
+@app.get("/api/info")
+async def app_info():
+    """Return app information for the desktop client."""
+    return {
+        "version": "1.0.0",
+        "data_dir": str(DATA_DIR),
+        "mode": "desktop",
+    }
 
 
 # ─── SERVE FRONTEND ──────────────────────────────────────────────────

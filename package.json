@@ -1,0 +1,21 @@
+{
+  "name": "rei",
+  "version": "1.0.0",
+  "description": "REI — Chat with your PDFs using local or cloud AI",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "backend": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/someonealreadytookmyname/rei.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1"
+  }
+}

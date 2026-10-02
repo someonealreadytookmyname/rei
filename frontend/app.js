@@ -15,6 +15,7 @@
         chatHistory: [],             // conversation messages [{role, content}]
         isStreaming: false,           // true while receiving a response
         settings: {},                // loaded from API
+        ollama: { running: false, models: [] },  // Ollama status
     };
 
     // ─── DOM REFERENCES ─────────────────────────────────────────────
@@ -51,8 +52,22 @@
     async function init() {
         await loadSettings();
         await loadPdfs();
+        await checkOllamaStatus();
         bindEvents();
         updateUI();
+
+        // Periodically check Ollama status (every 30s)
+        setInterval(checkOllamaStatus, 30000);
+    }
+
+    async function checkOllamaStatus() {
+        try {
+            state.ollama = await API.get('/ollama/status');
+        } catch (e) {
+            state.ollama = { running: false, models: [] };
+        }
+        renderStatusIndicator();
+        renderSidebarInfo();
     }
 
     // ─── API HELPERS ────────────────────────────────────────────────
@@ -209,6 +224,19 @@
             ? 'all docs'
             : `${selectedCount} selected`;
 
+        let ollamaRow = '';
+        if (mode === 'local') {
+            const ollamaStatus = state.ollama.running
+                ? `<span class="info-value" style="color:var(--accent)">connected (${state.ollama.models.length} models)</span>`
+                : `<span class="info-value" style="color:var(--error, #e55)">offline</span>`;
+            ollamaRow = `
+                <div class="info-row">
+                    <span>ollama</span>
+                    ${ollamaStatus}
+                </div>
+            `;
+        }
+
         els.sidebarInfo.innerHTML = `
             <div class="info-row">
                 <span>mode</span>
@@ -222,13 +250,24 @@
                 <span>scope</span>
                 <span class="info-value">${scopeLabel}</span>
             </div>
+            ${ollamaRow}
         `;
     }
 
     function renderStatusIndicator() {
         const mode = state.settings.llm_mode || 'local';
-        els.statusDot.className = `status-dot status-${mode}`;
-        els.statusLabel.textContent = mode;
+        if (mode === 'local') {
+            if (state.ollama.running) {
+                els.statusDot.className = 'status-dot status-local';
+                els.statusLabel.textContent = 'ollama ●';
+            } else {
+                els.statusDot.className = 'status-dot status-offline';
+                els.statusLabel.textContent = 'ollama offline';
+            }
+        } else {
+            els.statusDot.className = `status-dot status-${mode}`;
+            els.statusLabel.textContent = mode;
+        }
     }
 
     function renderScopeToggle() {

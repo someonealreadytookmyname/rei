@@ -1,5 +1,4 @@
 import numpy as np
-import os
 from typing import Optional
 
 # Lazy-loaded singleton for local model
@@ -21,11 +20,6 @@ def embed_local(texts: list[str]) -> list[list[float]]:
     Same model as existing create_embeddings.py: all-MiniLM-L6-v2
     Returns list of embedding vectors.
     """
-    if os.environ.get("HOSTED") == "true":
-        raise ValueError(
-            "Local embeddings (SentenceTransformers) are disabled on free cloud hosting due to memory constraints (512MB RAM limit). "
-            "Please open Settings in the UI and switch 'embedding' to 'openai api' (supports OpenAI or Gemini API keys)."
-        )
     model = _get_local_model()
     embeddings = model.encode(texts)
     return embeddings.tolist()

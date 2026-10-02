@@ -121,7 +121,8 @@ pub fn run() {
             // In production release builds, spawn Python backend as a managed child process
             if !cfg!(debug_assertions) {
                 let state = app.state::<BackendState>();
-                match std::process::Command::new("python")
+                let python_cmd = if cfg!(windows) { "python" } else { "python3" };
+                match std::process::Command::new(python_cmd)
                     .args([
                         "-m",
                         "uvicorn",

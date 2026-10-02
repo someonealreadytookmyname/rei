@@ -84,6 +84,51 @@ async def stream_ollama(
         yield item
 
 
+# ─── LM STUDIO (LOCAL OPENAI-COMPATIBLE) ──────────────────────────────
+
+async def stream_lm_studio(
+    question: str,
+    context: str,
+    history: list[dict],
+    base_url: str = "http://127.0.0.1:1234/v1",
+    model: str = "local-model",
+) -> AsyncGenerator[str, None]:
+    """Stream response from local LM Studio server (OpenAI API compatible)."""
+    from openai import OpenAI
+
+    client = OpenAI(base_url=base_url, api_key="lm-studio")
+    messages = _build_messages(question, context, history)
+
+    loop = asyncio.get_running_loop()
+    async_queue = asyncio.Queue()
+    sentinel = object()
+
+    def _run_stream():
+        try:
+            stream = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+            )
+            for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    loop.call_soon_threadsafe(async_queue.put_nowait, chunk.choices[0].delta.content)
+        except Exception as e:
+            loop.call_soon_threadsafe(async_queue.put_nowait, e)
+        finally:
+            loop.call_soon_threadsafe(async_queue.put_nowait, sentinel)
+
+    loop.run_in_executor(None, _run_stream)
+
+    while True:
+        item = await async_queue.get()
+        if item is sentinel:
+            break
+        if isinstance(item, Exception):
+            raise item
+        yield item
+
+
 # ─── OPENAI ──────────────────────────────────────────────────────────
 
 async def stream_openai(
@@ -314,9 +359,16 @@ async def generate(
     mode = config.get("llm_mode", "local")
 
     if mode == "local":
-        model = config.get("ollama_model", "qwen3:4b")
-        async for token in stream_ollama(question, context, history, model):
-            yield token
+        local_backend = config.get("local_backend", "ollama")
+        if local_backend == "lmstudio":
+            base_url = config.get("lm_studio_url", "http://127.0.0.1:1234/v1")
+            model = config.get("lm_studio_model", "local-model")
+            async for token in stream_lm_studio(question, context, history, base_url, model):
+                yield token
+        else:
+            model = config.get("ollama_model", "qwen3:4b")
+            async for token in stream_ollama(question, context, history, model):
+                yield token
 
     elif mode == "api":
         provider = config.get("api_provider", "openai")

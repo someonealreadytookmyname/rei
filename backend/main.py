@@ -291,6 +291,22 @@ async def ollama_pull_model(model_name: str):
         raise HTTPException(status_code=503, detail=f"Ollama not reachable: {str(e)}")
 
 
+@app.get("/api/lmstudio/status")
+async def lmstudio_status(url: str = "http://127.0.0.1:1234/v1"):
+    """Check if LM Studio server is running and list loaded models."""
+    try:
+        models_url = f"{url.rstrip('/')}/models"
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(models_url)
+            if resp.status_code == 200:
+                data = resp.json()
+                models = [m.get("id", "") for m in data.get("data", [])]
+                return {"running": True, "models": models}
+    except Exception:
+        pass
+    return {"running": False, "models": []}
+
+
 # ─── ROUTES: APP INFO ────────────────────────────────────────────────
 
 @app.get("/api/info")

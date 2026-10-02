@@ -52,17 +52,23 @@
     async function init() {
         await loadSettings();
         await loadPdfs();
-        await checkOllamaStatus();
+        await checkLocalEngineStatus();
         bindEvents();
         updateUI();
 
-        // Periodically check Ollama status (every 30s)
-        setInterval(checkOllamaStatus, 30000);
+        // Periodically check local engine status (every 30s)
+        setInterval(checkLocalEngineStatus, 30000);
     }
 
-    async function checkOllamaStatus() {
+    async function checkLocalEngineStatus() {
+        const backend = state.settings.local_backend || 'ollama';
         try {
-            state.ollama = await API.get('/ollama/status');
+            if (backend === 'lmstudio') {
+                const url = state.settings.lm_studio_url || 'http://127.0.0.1:1234/v1';
+                state.ollama = await API.get(`/lmstudio/status?url=${encodeURIComponent(url)}`);
+            } else {
+                state.ollama = await API.get('/ollama/status');
+            }
         } catch (e) {
             state.ollama = { running: false, models: [] };
         }
@@ -212,7 +218,11 @@
         const mode = state.settings.llm_mode || 'local';
         let modelName;
         if (mode === 'local') {
-            modelName = state.settings.ollama_model || 'qwen3:4b';
+            if (state.settings.local_backend === 'lmstudio') {
+                modelName = state.settings.lm_studio_model || 'local-model';
+            } else {
+                modelName = state.settings.ollama_model || 'qwen3:4b';
+            }
         } else {
             const provider = state.settings.api_provider || 'openai';
             const modelKey = `${provider}_model`;
@@ -224,15 +234,16 @@
             ? 'all docs'
             : `${selectedCount} selected`;
 
-        let ollamaRow = '';
+        let engineRow = '';
         if (mode === 'local') {
-            const ollamaStatus = state.ollama.running
+            const engineName = state.settings.local_backend === 'lmstudio' ? 'lm studio' : 'ollama';
+            const engineStatus = state.ollama.running
                 ? `<span class="info-value" style="color:var(--accent)">connected (${state.ollama.models.length} models)</span>`
                 : `<span class="info-value" style="color:var(--error, #e55)">offline</span>`;
-            ollamaRow = `
+            engineRow = `
                 <div class="info-row">
-                    <span>ollama</span>
-                    ${ollamaStatus}
+                    <span>${engineName}</span>
+                    ${engineStatus}
                 </div>
             `;
         }
@@ -250,19 +261,20 @@
                 <span>scope</span>
                 <span class="info-value">${scopeLabel}</span>
             </div>
-            ${ollamaRow}
+            ${engineRow}
         `;
     }
 
     function renderStatusIndicator() {
         const mode = state.settings.llm_mode || 'local';
         if (mode === 'local') {
+            const engineName = state.settings.local_backend === 'lmstudio' ? 'lm studio' : 'ollama';
             if (state.ollama.running) {
                 els.statusDot.className = 'status-dot status-local';
-                els.statusLabel.textContent = 'ollama ●';
+                els.statusLabel.textContent = `${engineName} ●`;
             } else {
                 els.statusDot.className = 'status-dot status-offline';
-                els.statusLabel.textContent = 'ollama offline';
+                els.statusLabel.textContent = `${engineName} offline`;
             }
         } else {
             els.statusDot.className = `status-dot status-${mode}`;
@@ -543,8 +555,17 @@
         $('#local-settings').classList.toggle('hidden', !isLocal);
         $('#api-settings').classList.toggle('hidden', isLocal);
 
-        // Ollama model
+        // Local engine backend (Ollama / LM Studio)
+        const localBackend = s.local_backend || 'ollama';
+        $$('.local-backend-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.backend === localBackend);
+        });
+        showLocalEngineConfig(localBackend);
+
+        // Ollama model & LM Studio settings
         $('#ollama-model').value = s.ollama_model || 'qwen3:4b';
+        if ($('#lmstudio-url')) $('#lmstudio-url').value = s.lm_studio_url || 'http://127.0.0.1:1234/v1';
+        if ($('#lmstudio-model')) $('#lmstudio-model').value = s.lm_studio_model || 'local-model';
 
         // API provider
         $$('.provider-btn').forEach(btn => {
@@ -568,6 +589,14 @@
         });
     }
 
+    function showLocalEngineConfig(backend) {
+        const isLmStudio = backend === 'lmstudio';
+        const ollamaCfg = $('#ollama-config');
+        const lmStudioCfg = $('#lmstudio-config');
+        if (ollamaCfg) ollamaCfg.classList.toggle('hidden', isLmStudio);
+        if (lmStudioCfg) lmStudioCfg.classList.toggle('hidden', !isLmStudio);
+    }
+
     function showProviderConfig(provider) {
         $$('.provider-config').forEach(el => el.classList.add('hidden'));
         const target = $(`#${provider}-config`);
@@ -577,8 +606,11 @@
     async function saveSettings() {
         const settings = {
             llm_mode: $('.llm-mode-btn.active')?.dataset.mode || 'local',
+            local_backend: $('.local-backend-btn.active')?.dataset.backend || 'ollama',
             api_provider: $('.provider-btn.active')?.dataset.provider || 'openai',
             ollama_model: $('#ollama-model').value,
+            lm_studio_url: $('#lmstudio-url') ? $('#lmstudio-url').value : 'http://127.0.0.1:1234/v1',
+            lm_studio_model: $('#lmstudio-model') ? $('#lmstudio-model').value : 'local-model',
             openai_api_key: $('#openai-key').value,
             openai_model: $('#openai-model').value,
             gemini_api_key: $('#gemini-key').value,
@@ -664,6 +696,15 @@
             if (e.target === els.settingsOverlay) closeSettings();
         });
         els.settingsSave.addEventListener('click', saveSettings);
+
+        // Local engine toggle in settings
+        $$('.local-backend-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('.local-backend-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                showLocalEngineConfig(btn.dataset.backend);
+            });
+        });
 
         // LLM mode toggle in settings
         $$('.llm-mode-btn').forEach(btn => {

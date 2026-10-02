@@ -114,10 +114,27 @@
                         </div>
                     </div>
 
-                    <!-- Ollama Model (local) -->
+                    <!-- Local Engine (Ollama / LM Studio) -->
                     <div id="local-settings" class="settings-subgroup">
-                        <label class="settings-label" for="ollama-model">ollama model</label>
-                        <input type="text" id="ollama-model" class="settings-input" value="qwen3:4b" placeholder="e.g. qwen3:4b, llama3, mistral">
+                        <label class="settings-label">local engine</label>
+                        <div class="toggle-group local-backend-group">
+                            <button class="toggle-btn local-backend-btn active" data-backend="ollama">ollama</button>
+                            <button class="toggle-btn local-backend-btn" data-backend="lmstudio">lm studio</button>
+                        </div>
+
+                        <!-- Ollama Config -->
+                        <div id="ollama-config" class="local-engine-config">
+                            <label class="settings-label" for="ollama-model">ollama model</label>
+                            <input type="text" id="ollama-model" class="settings-input" value="qwen3:4b" placeholder="e.g. qwen3:4b, llama3, mistral">
+                        </div>
+
+                        <!-- LM Studio Config -->
+                        <div id="lmstudio-config" class="local-engine-config hidden">
+                            <label class="settings-label" for="lmstudio-url">server url</label>
+                            <input type="text" id="lmstudio-url" class="settings-input" value="http://127.0.0.1:1234/v1" placeholder="http://127.0.0.1:1234/v1">
+                            <label class="settings-label" for="lmstudio-model">model identifier</label>
+                            <input type="text" id="lmstudio-model" class="settings-input" value="local-model" placeholder="e.g. local-model or exact model id">
+                        </div>
                     </div>
 
                     <!-- API Provider (api mode) -->

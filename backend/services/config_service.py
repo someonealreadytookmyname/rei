@@ -43,7 +43,10 @@ DEFAULT_CONFIG = {
     "gemini_model": "gemini-2.0-flash",
     "anthropic_model": "claude-sonnet-4-20250514",
     "huggingface_model": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "local_backend": "ollama",    # "ollama" or "lmstudio"
     "ollama_model": "qwen3:4b",
+    "lm_studio_url": "http://127.0.0.1:1234/v1",
+    "lm_studio_model": "local-model",
     "embedding_mode": "local",   # "local" or "api"
     "embedding_api_key": "",
 }

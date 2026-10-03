@@ -179,10 +179,12 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 let state = app_handle.state::<BackendState>();
+                let mut child_opt = None;
                 if let Ok(mut lock) = state.child.lock() {
-                    if let Some(mut child) = lock.take() {
-                        let _ = child.kill();
-                    }
+                    child_opt = lock.take();
+                };
+                if let Some(mut child) = child_opt {
+                    let _ = child.kill();
                 }
             }
         });
